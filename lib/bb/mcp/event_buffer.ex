@@ -20,6 +20,7 @@ defmodule BB.MCP.EventBuffer do
 
   @type entry :: %{
           monotonic_ns: integer(),
+          wall_ns: integer(),
           received_ns: integer(),
           robot: String.t(),
           path: [atom()],
@@ -78,7 +79,8 @@ defmodule BB.MCP.EventBuffer do
   def push(buffer, robot_name, path, %Message{} = message)
       when is_binary(robot_name) and is_list(path) do
     entry = %{
-      monotonic_ns: message.timestamp,
+      monotonic_ns: message.monotonic_time,
+      wall_ns: message.wall_time,
       received_ns: System.monotonic_time(:nanosecond),
       robot: robot_name,
       path: path,

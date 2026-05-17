@@ -11,7 +11,9 @@ defmodule BB.MCP.EventBufferTest do
 
   defp event_message(status, data \\ %{}) do
     %Message{
-      timestamp: System.monotonic_time(:nanosecond),
+      monotonic_time: System.monotonic_time(:nanosecond),
+      wall_time: System.system_time(:nanosecond),
+      node: Node.self(),
       frame_id: :base_link,
       payload: %CommandEvent{status: status, data: data}
     }
@@ -127,7 +129,9 @@ defmodule BB.MCP.EventBufferTest do
   describe "Serializer rendering" do
     test "non-encodable values fall back to inspect" do
       msg = %Message{
-        timestamp: 100,
+        monotonic_time: 100,
+        wall_time: 1_700_000_000_000_000_000,
+        node: Node.self(),
         frame_id: :base_link,
         payload: %CommandEvent{
           status: :failed,
@@ -144,6 +148,23 @@ defmodule BB.MCP.EventBufferTest do
       assert entry["payload"]["status"] == "failed"
       assert is_binary(entry["payload"]["data"]["tensor"])
       assert entry["payload"]["data"]["binary"] =~ "bytes"
+    end
+
+    test "renders wall_time as an ISO-8601 string" do
+      msg = %Message{
+        monotonic_time: 0,
+        wall_time: 1_700_000_000_000_000_000,
+        node: Node.self(),
+        frame_id: :base_link,
+        payload: %CommandEvent{status: :started, data: %{}}
+      }
+
+      buffer =
+        EventBuffer.new(10)
+        |> EventBuffer.push("robot", [:command, :home], msg)
+
+      [entry] = EventBuffer.query(buffer, %{})
+      assert entry["wall_time"] == "2023-11-14T22:13:20.000000Z"
     end
   end
 end
