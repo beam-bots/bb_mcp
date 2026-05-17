@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "bb_mcp": {
+      "type": "http",
+      "url": "http://localhost:4000/mcp"
+    }
+  }
+}
