@@ -151,11 +151,15 @@ defmodule BB.MCP.Server do
     _ -> :ok
   end
 
-  # BB.PubSub delivers `{:bb, path, message}` with no robot id. With one
-  # subscription that's unambiguous; with several we attribute to the first
-  # — the path still identifies which subtree the event came from.
-  defp robot_name_for(%{subscriptions: []}, _msg), do: nil
-  defp robot_name_for(%{subscriptions: [{name, _} | _]}, _msg), do: name
+  defp robot_name_for(%{subscriptions: subs}, %Message{robot: robot_module})
+       when is_atom(robot_module) do
+    case List.keyfind(subs, robot_module, 1) do
+      {name, ^robot_module} -> name
+      _ -> nil
+    end
+  end
+
+  defp robot_name_for(_, _), do: nil
 
   @impl Anubis.Server
   def handle_tool_call(name, params, frame) do
