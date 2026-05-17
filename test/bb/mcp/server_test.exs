@@ -159,14 +159,16 @@ defmodule BB.MCP.ServerTest do
       frame = Frame.assign(frame, :event_buffer, buffer)
 
       msg_first = %Message{
-        timestamp: 1,
+        wall_time: 1,
+        monotonic_time: 1,
         frame_id: :base_link,
         payload: %CommandEvent{status: :started, data: %{}},
         robot: FirstFakeRobot
       }
 
       msg_second = %Message{
-        timestamp: 2,
+        wall_time: 2,
+        monotonic_time: 2,
         frame_id: :base_link,
         payload: %CommandEvent{status: :succeeded, data: %{}},
         robot: SecondFakeRobot
@@ -192,7 +194,8 @@ defmodule BB.MCP.ServerTest do
       frame = Frame.assign(frame, :event_buffer, buffer)
 
       stray = %Message{
-        timestamp: 3,
+        wall_time: 3,
+        monotonic_time: 3,
         frame_id: :base_link,
         payload: %CommandEvent{status: :started, data: %{}}
       }
