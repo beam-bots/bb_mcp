@@ -8,6 +8,7 @@ defmodule BB.MCP.ServerTest do
   alias Anubis.MCP.Error
   alias Anubis.Server.Frame
   alias BB.Command.Event, as: CommandEvent
+  alias BB.MCP.EventBuffer
   alias BB.MCP.FixtureRobot
   alias BB.MCP.Server
   alias BB.MCP.Tools.QueryEvents
@@ -105,7 +106,8 @@ defmodule BB.MCP.ServerTest do
         wall_time: 1_700_000_000_000_000_000,
         node: Node.self(),
         frame_id: :base_link,
-        payload: %CommandEvent{status: :started, data: %{}}
+        payload: %CommandEvent{status: :started, data: %{}},
+        robot: FixtureRobot
       }
 
       assert {:noreply, frame} =
@@ -115,6 +117,7 @@ defmodule BB.MCP.ServerTest do
       assert [entry] = buffer.events
       assert entry.path == [:command, :go_home, "exec-1"]
       assert entry.payload_module == CommandEvent
+      assert entry.robot == "fixture_robot"
     end
 
     test "query_events tool returns the buffered events", %{frame: frame} do
@@ -126,7 +129,8 @@ defmodule BB.MCP.ServerTest do
         wall_time: 1_700_000_000_000_000_000,
         node: Node.self(),
         frame_id: :base_link,
-        payload: %CommandEvent{status: :succeeded, data: %{}}
+        payload: %CommandEvent{status: :succeeded, data: %{}},
+        robot: FixtureRobot
       }
 
       {:noreply, frame} =
@@ -143,6 +147,63 @@ defmodule BB.MCP.ServerTest do
 
     test "handle_info ignores unrelated messages", %{frame: frame} do
       assert {:noreply, ^frame} = Server.handle_info(:something_else, frame)
+    end
+
+    test "handle_info attributes each message to its publishing robot",
+         %{frame: frame} do
+      buffer =
+        EventBuffer.new(10)
+        |> EventBuffer.record_subscription("first", FirstFakeRobot)
+        |> EventBuffer.record_subscription("second", SecondFakeRobot)
+
+      frame = Frame.assign(frame, :event_buffer, buffer)
+
+      msg_first = %Message{
+        wall_time: 1,
+        monotonic_time: 1,
+        frame_id: :base_link,
+        payload: %CommandEvent{status: :started, data: %{}},
+        robot: FirstFakeRobot
+      }
+
+      msg_second = %Message{
+        wall_time: 2,
+        monotonic_time: 2,
+        frame_id: :base_link,
+        payload: %CommandEvent{status: :succeeded, data: %{}},
+        robot: SecondFakeRobot
+      }
+
+      {:noreply, frame} = Server.handle_info({:bb, [:command, :a], msg_first}, frame)
+      {:noreply, frame} = Server.handle_info({:bb, [:command, :b], msg_second}, frame)
+
+      [entry_second, entry_first] = frame.assigns.event_buffer.events
+
+      assert entry_first.robot == "first"
+      assert entry_first.path == [:command, :a]
+      assert entry_second.robot == "second"
+      assert entry_second.path == [:command, :b]
+    end
+
+    test "handle_info falls back to \"unknown\" when message has no robot",
+         %{frame: frame} do
+      buffer =
+        EventBuffer.new(10)
+        |> EventBuffer.record_subscription("first", FirstFakeRobot)
+
+      frame = Frame.assign(frame, :event_buffer, buffer)
+
+      stray = %Message{
+        wall_time: 3,
+        monotonic_time: 3,
+        frame_id: :base_link,
+        payload: %CommandEvent{status: :started, data: %{}}
+      }
+
+      {:noreply, frame} = Server.handle_info({:bb, [:stray], stray}, frame)
+
+      [entry] = frame.assigns.event_buffer.events
+      assert entry.robot == "unknown"
     end
   end
 end
