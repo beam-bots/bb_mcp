@@ -101,7 +101,9 @@ defmodule BB.MCP.ServerTest do
       {:ok, frame} = Server.init(%{}, frame)
 
       message = %Message{
-        timestamp: 123,
+        monotonic_time: 123,
+        wall_time: 1_700_000_000_000_000_000,
+        node: Node.self(),
         frame_id: :base_link,
         payload: %CommandEvent{status: :started, data: %{}}
       }
@@ -120,7 +122,9 @@ defmodule BB.MCP.ServerTest do
       {:ok, frame} = Server.init(%{}, frame)
 
       message = %Message{
-        timestamp: 1,
+        monotonic_time: 1,
+        wall_time: 1_700_000_000_000_000_000,
+        node: Node.self(),
         frame_id: :base_link,
         payload: %CommandEvent{status: :succeeded, data: %{}}
       }

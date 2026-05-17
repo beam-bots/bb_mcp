@@ -26,10 +26,16 @@ defmodule BB.MCP.EventBuffer.Serializer do
       "path" => EventBuffer.path_to_string(entry.path),
       "type" => format_module(entry.payload_module),
       "frame_id" => format_atom(entry.message.frame_id),
-      "monotonic_ns" => entry.monotonic_ns,
+      "wall_time" => format_wall_time(entry.wall_ns),
       "age_ms" => div(now_ns - entry.received_ns, 1_000_000),
       "payload" => jsonable(entry.message.payload)
     }
+  end
+
+  defp format_wall_time(ns) when is_integer(ns) do
+    ns
+    |> DateTime.from_unix!(:nanosecond)
+    |> DateTime.to_iso8601()
   end
 
   defp format_module(nil), do: nil
