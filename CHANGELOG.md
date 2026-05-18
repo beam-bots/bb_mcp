@@ -11,6 +11,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.1](https://github.com/beam-bots/bb_mcp/compare/v0.1.0...v0.1.1) (2026-05-18)
+
+
+
+
+### Bug Fixes:
+
+* attribute pubsub events to the correct publishing robot (#1) by James Harton
+
+### Improvements:
+
+* surface `BB.Message.wall_time` as ISO-8601 to MCP clients (#2) by James Harton
+
 ## [v0.1.0](https://github.com/beam-bots/bb_mcp/compare/v0.1.0...v0.1.0) (2026-05-17)
 
 
