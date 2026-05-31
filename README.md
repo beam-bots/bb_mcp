@@ -4,7 +4,16 @@ SPDX-FileCopyrightText: 2026 James Harton
 SPDX-License-Identifier: Apache-2.0
 -->
 
+<img src="https://github.com/beam-bots/bb/blob/main/logos/beam_bots_logo.png?raw=true" alt="Beam Bots Logo" width="250" />
+
 # BB.MCP
+
+[![CI](https://github.com/beam-bots/bb_mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/beam-bots/bb_mcp/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Hex version badge](https://img.shields.io/hexpm/v/bb_mcp.svg)](https://hex.pm/packages/bb_mcp)
+[![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/bb_mcp)
+[![REUSE status](https://api.reuse.software/badge/github.com/beam-bots/bb_mcp)](https://api.reuse.software/info/github.com/beam-bots/bb_mcp)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/beam-bots/bb_mcp)
 
 Model Context Protocol (MCP) server for [Beam Bots](https://github.com/beam-bots/bb) robots.
 
