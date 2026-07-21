@@ -12,9 +12,12 @@ defmodule BB.MCP do
 
   ## Quick start
 
+      # config/config.exs
+      config :bb_mcp, robots: [MyApp.WX200]
+
       children = [
         MyApp.WX200,
-        {BB.MCP.Server, name: MyApp.MCP, robots: [MyApp.WX200]}
+        {BB.MCP.Server, transport: :streamable_http}
       ]
 
       Supervisor.start_link(children, strategy: :one_for_one)
@@ -23,7 +26,7 @@ defmodule BB.MCP do
 
       import BB.MCP.Router
       scope "/" do
-        bb_mcp "/mcp", server: MyApp.MCP
+        bb_mcp "/mcp"
       end
   """
 end
