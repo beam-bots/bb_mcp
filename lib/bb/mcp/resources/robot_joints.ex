@@ -30,7 +30,7 @@ defmodule BB.MCP.Resources.RobotJoints do
     case Resources.fetch_robot(params) do
       {:ok, module} ->
         payload = %{
-          "positions" => stringify_keys(Runtime.positions(module)),
+          "positions" => stringify_keys(Runtime.configurations(module)),
           "velocities" => stringify_keys(Runtime.velocities(module))
         }
 

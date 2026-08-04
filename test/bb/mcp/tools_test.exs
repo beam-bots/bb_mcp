@@ -128,7 +128,7 @@ defmodule BB.MCP.ToolsTest do
       assert [%{"text" => text, "type" => "text"}] = response.content
       assert %{"positions" => %{"shoulder" => 0.25}, "status" => "ok"} = Jason.decode!(text)
 
-      positions = FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_positions()
+      positions = FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_configurations()
       assert positions.shoulder == 0.25
     end
 
@@ -146,7 +146,7 @@ defmodule BB.MCP.ToolsTest do
                  frame
                )
 
-      positions = FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_positions()
+      positions = FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_configurations()
       assert positions.shoulder == 0.0
     end
   end
