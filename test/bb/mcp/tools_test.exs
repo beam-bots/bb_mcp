@@ -15,6 +15,9 @@ defmodule BB.MCP.ToolsTest do
   alias BB.MCP.Tools.ListCommands
   alias BB.MCP.Tools.SendJointPositions
   alias BB.MCP.Tools.SetParameter
+  alias BB.Message
+  alias BB.Message.Sensor.JointState
+  alias BB.PubSub
   alias BB.Robot.Runtime
   alias BB.Robot.State, as: RobotState
   alias BB.Safety
@@ -116,6 +119,7 @@ defmodule BB.MCP.ToolsTest do
       start_supervised!({FixtureRobot, [simulation: :kinematic]})
       :ok = Safety.arm(FixtureRobot)
       {:ok, :idle} = Runtime.transition(FixtureRobot, :idle)
+      PubSub.subscribe(FixtureRobot, [:sensor, :base, :shoulder, :motor_position])
 
       frame = Frame.new()
 
@@ -128,8 +132,7 @@ defmodule BB.MCP.ToolsTest do
       assert [%{"text" => text, "type" => "text"}] = response.content
       assert %{"positions" => %{"shoulder" => 0.25}, "status" => "ok"} = Jason.decode!(text)
 
-      positions = FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_configurations()
-      assert positions.shoulder == 0.25
+      await_joint_position(:shoulder, 0.25)
     end
 
     test "send_joint_positions rejects invalid positions before sending" do
@@ -191,6 +194,21 @@ defmodule BB.MCP.ToolsTest do
     test "reports (none configured) when empty" do
       Application.put_env(:bb_mcp, :robots, [])
       assert Tools.available_names() == "(none configured)"
+    end
+  end
+
+  # `BB.Robot.State` is written from `JointState` messages and nothing else, so
+  # the open-loop estimator has to interpolate the whole move before the joint
+  # reads back at its target.
+  defp await_joint_position(joint, expected) do
+    assert_receive {:bb, _path, %Message{payload: %JointState{names: [^joint], positions: [p]}}},
+                   1_000
+
+    if p == expected do
+      assert %{^joint => ^expected} =
+               FixtureRobot |> Runtime.get_robot_state() |> RobotState.get_all_configurations()
+    else
+      await_joint_position(joint, expected)
     end
   end
 end

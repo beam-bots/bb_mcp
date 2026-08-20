@@ -78,7 +78,7 @@ defmodule BB.MCP.MixProject do
   defp deps do
     [
       {:anubis_mcp, "~> 1.5"},
-      {:bb, bb_dep("~> 0.16")},
+      {:bb, bb_dep("~> 0.30")},
       {:jason, "~> 1.4"},
       {:plug, "~> 1.16"},
 
