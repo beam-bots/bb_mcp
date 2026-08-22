@@ -47,6 +47,7 @@ defmodule BB.MCP.FixtureRobot do
         end
 
         actuator(:motor, BB.Sim.Actuator)
+        sensor(:motor_position, {BB.Sensor.OpenLoopPositionEstimator, actuator: :motor})
 
         link(:arm)
       end

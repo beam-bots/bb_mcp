@@ -9,6 +9,10 @@ defmodule BB.MCP.Tools.SendJointPositions do
   Positions are SI units: radians for revolute/continuous joints, metres for
   prismatic joints. Send a single joint with `joint`/`position`, or a batch as a
   JSON object string in `positions_json`. The robot must be armed and idle.
+
+  Delivery defaults to `pubsub`, which waits for every actuator to accept its
+  command and reports the first refusal. `direct` casts instead and waits for
+  nothing, so it answers `ok` whether or not the robot took the command.
   """
 
   use Anubis.Server.Component, type: :tool
@@ -41,7 +45,10 @@ defmodule BB.MCP.Tools.SendJointPositions do
 
     field(:delivery, :string,
       required: false,
-      description: "Delivery mode: direct (default), pubsub, or sync"
+      description:
+        "Delivery mode: pubsub (default) waits for every actuator to accept " <>
+          "the command and reports the first refusal; direct casts and waits " <>
+          "for nothing, so a refusal is never reported"
     )
 
     field(:duration, :integer,
@@ -70,11 +77,11 @@ defmodule BB.MCP.Tools.SendJointPositions do
 
       {:reply, Response.json(Response.tool(), payload), frame}
     else
-      {:error, %Error{} = error} ->
-        {:error, error, frame}
+      {:error, reason} when is_binary(reason) ->
+        {:error, Error.protocol(:invalid_request, %{message: reason}), frame}
 
       {:error, reason} ->
-        {:error, Error.protocol(:invalid_request, %{message: to_string(reason)}), frame}
+        {:error, Tools.to_anubis_error(reason), frame}
     end
   end
 
@@ -221,11 +228,10 @@ defmodule BB.MCP.Tools.SendJointPositions do
     end
   end
 
-  defp parse_delivery(nil), do: {:ok, :direct}
+  defp parse_delivery(nil), do: {:ok, :pubsub}
   defp parse_delivery("direct"), do: {:ok, :direct}
   defp parse_delivery("pubsub"), do: {:ok, :pubsub}
-  defp parse_delivery("sync"), do: {:ok, :sync}
-  defp parse_delivery(_delivery), do: {:error, "delivery must be direct, pubsub, or sync"}
+  defp parse_delivery(_delivery), do: {:error, "delivery must be pubsub or direct"}
 
   defp maybe_put_positive_number(opts, _key, nil), do: {:ok, opts}
 
