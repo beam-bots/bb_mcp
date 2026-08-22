@@ -11,6 +11,13 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.0](https://github.com/beam-bots/bb_mcp/compare/v0.2.0...v0.3.0) (2026-08-22)
+### Breaking Changes:
+
+* follow core's synchronous `BB.Actuator.set_position/4` (#48) by James Harton
+
+
+
 ## [v0.2.0](https://github.com/beam-bots/bb_mcp/compare/v0.1.1...v0.2.0) (2026-08-04)
 ### Breaking Changes:
 
