@@ -8,11 +8,17 @@ defmodule BB.MCP.Tools.ListParameters do
   by a path prefix.
 
   Returns each parameter's dotted path and current value.
+
+  A parameter declared with a unit type reports its value and default as an
+  object carrying the magnitude and the unit name, e.g.
+  `{"value": -12.5, "unit": "degree"}`. That object is exactly what
+  `set_parameter` accepts for the same parameter.
   """
 
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias BB.MCP.ParameterValue
   alias BB.MCP.Tools
   alias BB.Parameter
 
@@ -52,17 +58,17 @@ defmodule BB.MCP.Tools.ListParameters do
     Map.reject(
       %{
         "path" => format_path(path),
-        "value" => Map.get(metadata, :value),
+        "value" => metadata |> Map.get(:value) |> ParameterValue.serialise(),
         "type" => metadata |> Map.get(:type) |> inspect_or_nil(),
         "doc" => Map.get(metadata, :doc),
-        "default" => Map.get(metadata, :default)
+        "default" => metadata |> Map.get(:default) |> ParameterValue.serialise()
       },
       fn {_k, v} -> is_nil(v) end
     )
   end
 
   defp format_parameter({path, value}) do
-    %{"path" => format_path(path), "value" => value}
+    %{"path" => format_path(path), "value" => ParameterValue.serialise(value)}
   end
 
   defp format_path(path), do: Enum.map_join(path, ".", &Atom.to_string/1)

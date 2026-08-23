@@ -99,6 +99,12 @@ the target robot:
 | `send_joint_positions` | `BB.Motion.send_positions/3` |
 | `query_events`      | per-session `BB.PubSub` ring buffer |
 
+A parameter declared with a unit type crosses the boundary as an object
+carrying the magnitude and the CLDR unit name — `{"value": -12.5, "unit":
+"degree"}`. That is what the read paths report and what `set_parameter`
+accepts; a bare number is also accepted on write and takes the parameter's
+declared unit.
+
 Per-command tools (×N) — one tool per `{robot, command}` pair declared
 in each robot's Spark DSL, registered at session startup. Tool name is
 `{robot}.{command}` (e.g. `wx200.home`); the input schema is derived

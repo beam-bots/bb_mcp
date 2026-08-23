@@ -74,6 +74,12 @@ target: `list_robots`, `get_state`, `force_disarm`, `list_commands`,
 `query_events`. `query_events` reads a per-session ring buffer of `BB.PubSub`
 events captured since the session connected.
 
+A parameter declared with a unit type crosses the boundary as an object
+carrying the magnitude and the CLDR unit name — `{"value": -12.5, "unit":
+"degree"}`. That is what `list_parameters`, `get_parameter` and the parameters
+resource report, and what `set_parameter` accepts; a bare number is also
+accepted on write and takes the parameter's declared unit.
+
 **Per-command tools** — one per `{robot, command}` pair declared in each robot's
 DSL, registered at session start, named `{robot}.{command}` (e.g. `wx200.home`,
 `wx200.arm`). Input schema is derived from the command's typed arguments;
