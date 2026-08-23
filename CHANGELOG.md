@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.1](https://github.com/beam-bots/bb_mcp/compare/v0.3.0...v0.3.1) (2026-08-23)
+
+
+
+
+### Bug Fixes:
+
+* shape joint state to each joint's degrees of freedom (#50) by James Harton
+
 ## [v0.3.0](https://github.com/beam-bots/bb_mcp/compare/v0.2.0...v0.3.0) (2026-08-22)
 ### Breaking Changes:
 
