@@ -7,7 +7,8 @@ defmodule BB.MCP.Tools.ListParameters do
   List the runtime parameters registered on a robot, optionally filtered
   by a path prefix.
 
-  Returns each parameter's dotted path and current value.
+  Returns each parameter's dotted path, current value, declared type, and the
+  `min`/`max` range a write has to fall inside where the robot declares one.
 
   A parameter declared with a unit type reports its value and default as an
   object carrying the magnitude and the unit name, e.g.
@@ -35,44 +36,24 @@ defmodule BB.MCP.Tools.ListParameters do
   def execute(params, frame) do
     case Tools.fetch_robot(params) do
       {:ok, robot} ->
-        prefix =
-          case Tools.get_arg(params, :prefix) do
-            nil -> []
-            "" -> []
-            str -> Tools.parse_path(str)
-          end
-
-        payload =
-          robot
-          |> Parameter.list(prefix: prefix)
-          |> Enum.map(&format_parameter/1)
-
-        {:reply, Response.json(Response.tool(), %{"parameters" => payload}), frame}
+        {:reply, Response.json(Response.tool(), list(robot, params)), frame}
 
       {:error, error} ->
         {:error, error, frame}
     end
   end
 
-  defp format_parameter({path, metadata}) when is_map(metadata) do
-    Map.reject(
-      %{
-        "path" => format_path(path),
-        "value" => metadata |> Map.get(:value) |> ParameterValue.serialise(),
-        "type" => metadata |> Map.get(:type) |> inspect_or_nil(),
-        "doc" => Map.get(metadata, :doc),
-        "default" => metadata |> Map.get(:default) |> ParameterValue.serialise()
-      },
-      fn {_k, v} -> is_nil(v) end
-    )
+  defp list(robot, params) do
+    prefix =
+      case Tools.get_arg(params, :prefix) do
+        nil -> []
+        "" -> []
+        str -> Tools.parse_path(str)
+      end
+
+    %{
+      "parameters" =>
+        robot |> Parameter.list(prefix: prefix) |> Enum.map(&ParameterValue.describe/1)
+    }
   end
-
-  defp format_parameter({path, value}) do
-    %{"path" => format_path(path), "value" => ParameterValue.serialise(value)}
-  end
-
-  defp format_path(path), do: Enum.map_join(path, ".", &Atom.to_string/1)
-
-  defp inspect_or_nil(nil), do: nil
-  defp inspect_or_nil(other), do: inspect(other)
 end
