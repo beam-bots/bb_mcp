@@ -4,9 +4,11 @@
 
 defmodule BB.MCP.FixtureRobot do
   @moduledoc """
-  Minimal BB-DSL robot used solely for compile-time introspection in
-  the bb_mcp test suite. It is not intended to be started — only
-  `BB.Dsl.Info.commands/1` and friends are exercised against it.
+  Minimal BB-DSL robot used for introspection in the bb_mcp test suite.
+
+  Its `commands` block declares a category alongside its commands, because the
+  DSL's `commands` section holds both and `BB.Dsl.Info.commands/1` returns them
+  together.
   """
 
   defmodule HomeHandler do
@@ -55,6 +57,11 @@ defmodule BB.MCP.FixtureRobot do
   end
 
   commands do
+    category :motion do
+      concurrency_limit(1)
+      doc("Commands that move the arm")
+    end
+
     command :arm do
       handler(BB.Command.Arm)
       allowed_states([:disarmed])
@@ -68,6 +75,7 @@ defmodule BB.MCP.FixtureRobot do
     command :go_home do
       handler(HomeHandler)
       allowed_states([:idle])
+      category(:motion)
 
       argument :duration, :integer do
         required(false)

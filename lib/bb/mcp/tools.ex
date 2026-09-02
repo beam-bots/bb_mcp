@@ -13,6 +13,9 @@ defmodule BB.MCP.Tools do
   """
 
   alias Anubis.MCP.Error
+  alias BB.Dsl.Command
+  alias BB.Dsl.Info
+  alias BB.MCP.JsonSchema
   alias BB.MCP.Robots
 
   @doc """
@@ -58,6 +61,37 @@ defmodule BB.MCP.Tools do
      Error.protocol(:invalid_request, %{
        message: "missing required argument: robot (one of: #{available_names()})"
      })}
+  end
+
+  @doc """
+  The commands declared on a robot.
+
+  `BB.Dsl.Info.commands/1` returns every entity in the DSL's `commands`
+  section, which holds command categories alongside the commands themselves,
+  so the categories are filtered out here.
+  """
+  @spec commands(module()) :: [Command.t()]
+  def commands(robot_module) when is_atom(robot_module) do
+    robot_module
+    |> Info.commands()
+    |> Enum.filter(&is_struct(&1, Command))
+  end
+
+  @doc """
+  Describe a command for the `list_commands` tool and the commands resource.
+  """
+  @spec describe_command(Command.t()) :: map()
+  def describe_command(%Command{} = command) do
+    %{
+      "name" => Atom.to_string(command.name),
+      "category" => to_string(command.category || ""),
+      "allowed_states" => Enum.map(command.allowed_states, &Atom.to_string/1),
+      "timeout" => format_timeout(command.timeout),
+      "arms" => command.arm,
+      "disarms" => command.disarm,
+      "cancels" => Enum.map(command.cancel, &Atom.to_string/1),
+      "arguments" => JsonSchema.for_command(command)
+    }
   end
 
   @doc """
@@ -124,6 +158,9 @@ defmodule BB.MCP.Tools do
   end
 
   def to_anubis_error(reason), do: Error.execution(inspect(reason))
+
+  defp format_timeout(:infinity), do: "infinity"
+  defp format_timeout(timeout) when is_integer(timeout), do: timeout
 
   defp exception_data(error, module) do
     error

@@ -59,7 +59,6 @@ defmodule BB.MCP.Server do
   alias Anubis.Server.Frame
   alias Anubis.Server.Response
   alias BB.Command
-  alias BB.Dsl.Info
   alias BB.MCP.EventBuffer
   alias BB.MCP.PeriSchema
   alias BB.MCP.Robots
@@ -203,7 +202,7 @@ defmodule BB.MCP.Server do
 
   defp register_robot_tools({robot_name, robot_module}, frame) do
     robot_module
-    |> Info.commands()
+    |> Tools.commands()
     |> Enum.reduce(frame, fn command, acc ->
       register_command_tool(acc, robot_name, robot_module, command)
     end)
@@ -287,7 +286,7 @@ defmodule BB.MCP.Server do
 
   defp fetch_command(robot_module, command_name) do
     robot_module
-    |> Info.commands()
+    |> Tools.commands()
     |> Enum.find(&(&1.name == command_name))
     |> case do
       nil ->
