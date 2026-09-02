@@ -39,6 +39,18 @@ defmodule BB.MCP.Resources.RobotCommandsTest do
     assert command(frame, "wave")["arms"] == false
   end
 
+  test "advertises an enum argument's members as its permitted strings", %{frame: frame} do
+    style = command(frame, "wave")["arguments"]["properties"]["style"]
+
+    assert style["type"] == "string"
+    assert Enum.sort(style["enum"]) == ["enthusiastic", "gentle"]
+  end
+
+  test "advertises an atom argument as a string, since JSON has no atoms",
+       %{frame: frame} do
+    assert command(frame, "wave")["arguments"]["properties"]["about"]["type"] == "string"
+  end
+
   test "Tools.commands/1 returns only commands" do
     assert Enum.all?(Tools.commands(FixtureRobot), &is_struct(&1, BB.Dsl.Command))
   end
