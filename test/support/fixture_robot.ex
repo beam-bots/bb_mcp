@@ -97,6 +97,17 @@ defmodule BB.MCP.FixtureRobot do
         required(false)
         default(1.0)
       end
+
+      argument :style, {:in, [:gentle, :enthusiastic]} do
+        required(false)
+        default(:gentle)
+        doc("How to wave")
+      end
+
+      argument :about, :atom do
+        required(false)
+        doc("Joint to wave about")
+      end
     end
   end
 end

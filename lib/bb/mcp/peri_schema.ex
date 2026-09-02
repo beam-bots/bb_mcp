@@ -17,15 +17,25 @@ defmodule BB.MCP.PeriSchema do
       :float | :number                           -> :float
       :string                                    -> :string
       :boolean                                   -> :boolean
-      :atom                                      -> :atom
-      :map | {:map, fields}                     -> :map
+      :atom                                      -> :string
+      {:in, values}                              -> {:enum, values}
+      :map | {:map, fields}                      -> :map
       :keyword_list                              -> :keyword
+      {:list, inner}                             -> {:list, :any}
       :any                                       -> :any
       module / unknown                           -> :any
+
+  JSON has no atoms, so an `:atom` or `{:in, [:a, :b]}` argument is validated
+  as a string and converted back to an atom by `to_goal/2` on the way to the
+  command. An enum of atoms only ever admits the declared members, so those
+  convert against the declared list; a bare `:atom` has no declared list and
+  falls back to `String.to_existing_atom/1`, leaving the client's string in
+  place when no such atom exists rather than interning whatever was sent.
   """
 
   alias BB.Dsl.Command
   alias BB.Dsl.Command.Argument
+  alias BB.MCP.ArgumentType
 
   @doc """
   Build a Peri schema (map keyed by argument name) for a command's arguments.
@@ -140,9 +150,14 @@ defmodule BB.MCP.PeriSchema do
   defp base_type(:number), do: :float
   defp base_type(:boolean), do: :boolean
   defp base_type(:string), do: :string
-  defp base_type(:atom), do: :atom
+  defp base_type(:atom), do: :string
   defp base_type(:map), do: :map
   defp base_type({:map, _fields}), do: :map
+
+  defp base_type({:in, values}) when is_list(values),
+    do:
+      {:enum, Enum.map(values, &ArgumentType.wire_value/1), type: ArgumentType.enum_base(values)}
+
   defp base_type(:keyword_list), do: :keyword
   defp base_type(:any), do: :any
   defp base_type({:list, _inner}), do: {:list, :any}
@@ -174,6 +189,16 @@ defmodule BB.MCP.PeriSchema do
     end
   end
 
+  defp decode_argument(%Argument{name: name, type: {:in, values}}, params) do
+    if has_arg?(params, name) do
+      params |> get_arg(name) |> to_declared_value(values)
+    end
+  end
+
+  defp decode_argument(%Argument{name: name, type: :atom}, params) do
+    if has_arg?(params, name), do: params |> get_arg(name) |> to_existing_atom()
+  end
+
   defp decode_argument(%Argument{name: name}, params) do
     if has_arg?(params, name), do: get_arg(params, name)
   end
@@ -186,6 +211,18 @@ defmodule BB.MCP.PeriSchema do
   end
 
   defp decode_json_map(value), do: value
+
+  defp to_declared_value(sent, values) do
+    Enum.find(values, sent, &(ArgumentType.wire_value(&1) == sent))
+  end
+
+  defp to_existing_atom(value) when is_binary(value) do
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> value
+  end
+
+  defp to_existing_atom(value), do: value
 
   defp collect_dotted_args(params, name) do
     prefix = "#{name}."

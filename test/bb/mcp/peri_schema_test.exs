@@ -19,11 +19,22 @@ defmodule BB.MCP.PeriSchemaTest do
       assert PeriSchema.for_argument(%Argument{type: :number}) == :float
     end
 
-    test "maps :string, :boolean, :atom, :map verbatim" do
+    test "maps :string, :boolean, :map verbatim" do
       assert PeriSchema.for_argument(%Argument{type: :string}) == :string
       assert PeriSchema.for_argument(%Argument{type: :boolean}) == :boolean
-      assert PeriSchema.for_argument(%Argument{type: :atom}) == :atom
       assert PeriSchema.for_argument(%Argument{type: :map}) == :map
+    end
+
+    test "validates an atom argument as a string, since JSON has no atoms" do
+      assert PeriSchema.for_argument(%Argument{type: :atom}) == :string
+    end
+
+    test "validates an enum argument against its members rendered as strings" do
+      assert PeriSchema.for_argument(%Argument{type: {:in, [:gentle, :enthusiastic]}}) ==
+               {:enum, ["gentle", "enthusiastic"], type: :string}
+
+      assert PeriSchema.for_argument(%Argument{type: {:in, [1, 2]}}) ==
+               {:enum, [1, 2], type: :integer}
     end
 
     test "falls back to :any for module / unknown types" do
