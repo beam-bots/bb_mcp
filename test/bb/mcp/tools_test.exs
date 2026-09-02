@@ -8,6 +8,7 @@ defmodule BB.MCP.ToolsTest do
   alias Anubis.MCP.Error
   alias Anubis.Server.Frame
   alias Anubis.Server.Response
+  alias BB.Error.State.CommandCrashed
   alias BB.Error.State.NotAllowed
   alias BB.MCP.FixtureRobot
   alias BB.MCP.Tools
@@ -169,11 +170,22 @@ defmodule BB.MCP.ToolsTest do
 
       assert message =~ "state :armed"
       assert message =~ ":disarmed"
-      assert data.current_state == ":armed"
-      assert data.allowed_states == [":disarmed"]
+      assert data.current_state == "armed"
+      assert data.allowed_states == ["disarmed"]
       assert data.error_type =~ "BB.Error.State.NotAllowed"
       refute Map.has_key?(data, :splode)
       refute Map.has_key?(data, :bread_crumbs)
+    end
+
+    test "renders an error field holding an exception as its message" do
+      assert %Error{data: data} =
+               Tools.to_anubis_error(%CommandCrashed{
+                 command: MyRobot.Home,
+                 exception: %RuntimeError{message: "kaboom"}
+               })
+
+      assert data.exception == "kaboom"
+      assert JSON.encode!(data)
     end
 
     test "wraps unknown atoms and tuples via inspect" do

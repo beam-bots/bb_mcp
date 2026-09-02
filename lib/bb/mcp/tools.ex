@@ -15,6 +15,7 @@ defmodule BB.MCP.Tools do
   alias Anubis.MCP.Error
   alias BB.Dsl.Command
   alias BB.Dsl.Info
+  alias BB.MCP.Json
   alias BB.MCP.JsonSchema
   alias BB.MCP.Robots
 
@@ -136,7 +137,14 @@ defmodule BB.MCP.Tools do
     |> Enum.map(&String.to_atom/1)
   end
 
-  @splode_internal_fields [:splode, :bread_crumbs, :vars, :path, :stacktrace]
+  @splode_internal_fields [
+    :__exception__,
+    :bread_crumbs,
+    :path,
+    :splode,
+    :stacktrace,
+    :vars
+  ]
 
   @doc """
   Convert any failure value into an `Anubis.MCP.Error` for the JSON-RPC reply.
@@ -167,13 +175,7 @@ defmodule BB.MCP.Tools do
     |> Map.from_struct()
     |> Map.drop(@splode_internal_fields)
     |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
-    |> Map.new(fn {k, v} -> {k, jsonable(v)} end)
+    |> Map.new(fn {k, v} -> {k, Json.encodable(v)} end)
     |> Map.put(:error_type, inspect(module))
   end
-
-  defp jsonable(nil), do: nil
-  defp jsonable(atom) when is_atom(atom) and not is_boolean(atom), do: inspect(atom)
-  defp jsonable(list) when is_list(list), do: Enum.map(list, &jsonable/1)
-  defp jsonable(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> jsonable()
-  defp jsonable(other), do: other
 end
