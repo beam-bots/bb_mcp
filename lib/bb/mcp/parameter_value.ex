@@ -24,6 +24,31 @@ defmodule BB.MCP.ParameterValue do
   alias BB.Unit
 
   @doc """
+  Describe one `BB.Parameter.list/2` entry for the parameter tools and resource.
+
+  `min` and `max` come from the parameter's declared type, so an agent can see
+  the range a write has to fall inside before `set_parameter` rejects it. Keys
+  the robot didn't declare are left out rather than sent as null.
+  """
+  @spec describe({[atom()], term()}) :: map()
+  def describe({path, metadata}) when is_map(metadata) do
+    %{
+      "path" => format_path(path),
+      "value" => metadata |> Map.get(:value) |> serialise(),
+      "type" => metadata |> Map.get(:type) |> format_type(),
+      "doc" => Map.get(metadata, :doc),
+      "default" => metadata |> Map.get(:default) |> serialise(),
+      "min" => metadata |> Map.get(:min) |> serialise(),
+      "max" => metadata |> Map.get(:max) |> serialise()
+    }
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  def describe({path, value}) do
+    %{"path" => format_path(path), "value" => serialise(value)}
+  end
+
+  @doc """
   Render a parameter value as a term `JSON.encode!/1` can carry.
   """
   @spec serialise(term()) :: term()
@@ -52,6 +77,11 @@ defmodule BB.MCP.ParameterValue do
   end
 
   def deserialise(_robot, _path, value), do: {:ok, value}
+
+  defp format_path(path), do: Enum.map_join(path, ".", &Atom.to_string/1)
+
+  defp format_type(nil), do: nil
+  defp format_type(type), do: inspect(type)
 
   defp build_unit(magnitude, unit) do
     case Localize.Unit.new(magnitude, Unit.unit_name(unit)) do
