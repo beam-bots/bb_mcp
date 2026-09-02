@@ -35,15 +35,19 @@ defmodule BB.MCP.ToolsTest do
 
   describe "parse_path/1" do
     test "splits a dotted string into atoms" do
-      assert Tools.parse_path("motion.max_speed") == [:motion, :max_speed]
+      assert Tools.parse_path("motion.max_speed") == {:ok, [:motion, :max_speed]}
     end
 
     test "handles a single segment" do
-      assert Tools.parse_path("velocity") == [:velocity]
+      assert Tools.parse_path("velocity") == {:ok, [:velocity]}
     end
 
     test "skips empty segments" do
-      assert Tools.parse_path("a..b") == [:a, :b]
+      assert Tools.parse_path("a..b") == {:ok, [:a, :b]}
+    end
+
+    test "refuses to intern a segment that is not already an atom" do
+      assert Tools.parse_path("motion.#{System.unique_integer([:positive])}") == :error
     end
   end
 

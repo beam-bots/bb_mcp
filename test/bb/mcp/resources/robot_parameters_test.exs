@@ -51,6 +51,16 @@ defmodule BB.MCP.Resources.RobotParametersTest do
     assert from_tool == %{"parameters" => read(frame)}
   end
 
+  test "a prefix naming a segment that is not an atom matches nothing", %{frame: frame} do
+    unknown = "motion.#{System.unique_integer([:positive])}"
+
+    assert {:reply, response, ^frame} =
+             ListParameters.execute(%{robot: "parameter_robot", prefix: unknown}, frame)
+
+    assert response.content |> hd() |> Map.fetch!("text") |> JSON.decode!() ==
+             %{"parameters" => []}
+  end
+
   defp parameter(frame, path) do
     frame |> read() |> Enum.find(&(&1["path"] == path))
   end

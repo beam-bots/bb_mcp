@@ -42,7 +42,7 @@ defmodule BB.MCP.Tools.SetParameter do
     path_str = Tools.get_arg(params, :path)
 
     with {:ok, robot} <- Tools.fetch_robot(params),
-         path = Tools.parse_path(path_str),
+         {:ok, path} <- Tools.parse_path(path_str),
          {:ok, value} <- ParameterValue.deserialise(robot, path, Tools.get_arg(params, :value)),
          :ok <- Parameter.set(robot, path, value) do
       payload = %{
@@ -53,6 +53,10 @@ defmodule BB.MCP.Tools.SetParameter do
 
       {:reply, Response.json(Response.tool(), payload), frame}
     else
+      :error ->
+        {:error, Error.resource(:not_found, %{message: "parameter not found: #{path_str}"}),
+         frame}
+
       {:error, message} when is_binary(message) ->
         {:error, Error.protocol(:invalid_params, %{message: message}), frame}
 

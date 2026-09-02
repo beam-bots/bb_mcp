@@ -129,12 +129,20 @@ defmodule BB.MCP.Tools do
 
   @doc """
   Parse a parameter path string (`"motion.max_speed"`) into atoms.
+
+  Uses `String.to_existing_atom/1`: the path segments of a registered
+  parameter are already atoms, and a segment that isn't names a parameter that
+  cannot exist. Interning whatever an MCP client sends would let a remote
+  caller grow the atom table, which is never collected.
   """
-  @spec parse_path(String.t()) :: [atom()]
+  @spec parse_path(String.t()) :: {:ok, [atom()]} | :error
   def parse_path(path) when is_binary(path) do
-    path
-    |> String.split(".", trim: true)
-    |> Enum.map(&String.to_atom/1)
+    {:ok,
+     path
+     |> String.split(".", trim: true)
+     |> Enum.map(&String.to_existing_atom/1)}
+  rescue
+    ArgumentError -> :error
   end
 
   @splode_internal_fields [

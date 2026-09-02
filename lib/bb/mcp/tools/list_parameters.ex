@@ -44,16 +44,21 @@ defmodule BB.MCP.Tools.ListParameters do
   end
 
   defp list(robot, params) do
-    prefix =
-      case Tools.get_arg(params, :prefix) do
-        nil -> []
-        "" -> []
-        str -> Tools.parse_path(str)
-      end
+    case parse_prefix(Tools.get_arg(params, :prefix)) do
+      {:ok, prefix} ->
+        %{
+          "parameters" =>
+            robot |> Parameter.list(prefix: prefix) |> Enum.map(&ParameterValue.describe/1)
+        }
 
-    %{
-      "parameters" =>
-        robot |> Parameter.list(prefix: prefix) |> Enum.map(&ParameterValue.describe/1)
-    }
+      # A prefix naming a segment that was never interned cannot match a
+      # registered parameter, so it filters everything out rather than erroring.
+      :error ->
+        %{"parameters" => []}
+    end
   end
+
+  defp parse_prefix(nil), do: {:ok, []}
+  defp parse_prefix(""), do: {:ok, []}
+  defp parse_prefix(prefix) when is_binary(prefix), do: Tools.parse_path(prefix)
 end
