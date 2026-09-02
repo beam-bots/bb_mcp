@@ -215,10 +215,11 @@ defmodule BB.MCP.ToolsTest do
 
   # `BB.Robot.State` is written from `JointState` messages and nothing else, so
   # the open-loop estimator has to interpolate the whole move before the joint
-  # reads back at its target.
+  # reads back at its target. The wait is generous because the interpolation
+  # runs on wall-clock time, which stretches when the machine is busy.
   defp await_joint_position(joint, expected) do
     assert_receive {:bb, _path, %Message{payload: %JointState{names: [^joint], positions: [p]}}},
-                   1_000
+                   5_000
 
     if p == expected do
       assert %{^joint => ^expected} =

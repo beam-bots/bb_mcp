@@ -19,7 +19,7 @@ defmodule BB.MCP.FixtureRobot do
     def handle_command(_goal, _context, state), do: {:stop, :normal, state}
 
     @impl BB.Command
-    def result(state), do: state.result
+    def result(state), do: {:ok, state.result}
   end
 
   defmodule WaveHandler do
@@ -30,7 +30,7 @@ defmodule BB.MCP.FixtureRobot do
     def handle_command(_goal, _context, state), do: {:stop, :normal, state}
 
     @impl BB.Command
-    def result(state), do: state.result
+    def result(state), do: {:ok, state.result}
   end
 
   use BB
