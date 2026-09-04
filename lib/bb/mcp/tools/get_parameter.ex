@@ -32,11 +32,15 @@ defmodule BB.MCP.Tools.GetParameter do
     path_str = Tools.get_arg(params, :path)
 
     with {:ok, robot} <- Tools.fetch_robot(params),
-         path = Tools.parse_path(path_str),
+         {:ok, path} <- Tools.parse_path(path_str),
          {:ok, value} <- Parameter.get(robot, path) do
       payload = %{"path" => path_str, "value" => ParameterValue.serialise(value)}
       {:reply, Response.json(Response.tool(), payload), frame}
     else
+      :error ->
+        {:error, Error.resource(:not_found, %{message: "parameter not found: #{path_str}"}),
+         frame}
+
       {:error, :not_found} ->
         {:error, Error.resource(:not_found, %{message: "parameter not found: #{path_str}"}),
          frame}

@@ -59,7 +59,6 @@ defmodule BB.MCP.Server do
   alias Anubis.Server.Frame
   alias Anubis.Server.Response
   alias BB.Command
-  alias BB.Dsl.Info
   alias BB.MCP.EventBuffer
   alias BB.MCP.PeriSchema
   alias BB.MCP.Robots
@@ -203,7 +202,7 @@ defmodule BB.MCP.Server do
 
   defp register_robot_tools({robot_name, robot_module}, frame) do
     robot_module
-    |> Info.commands()
+    |> Tools.commands()
     |> Enum.reduce(frame, fn command, acc ->
       register_command_tool(acc, robot_name, robot_module, command)
     end)
@@ -254,10 +253,9 @@ defmodule BB.MCP.Server do
 
   defp dispatch_command(robot_name, command_name, params, frame) do
     with {:ok, robot_module} <- resolve_robot(robot_name),
-         command_atom = String.to_atom(command_name),
-         {:ok, command} <- fetch_command(robot_module, command_atom),
+         {:ok, command} <- fetch_command(robot_module, command_name),
          goal = PeriSchema.to_goal(command, params),
-         {:ok, pid} <- Runtime.execute(robot_module, command_atom, goal),
+         {:ok, pid} <- Runtime.execute(robot_module, command.name, goal),
          {:ok, result} <- await_command(pid) do
       payload = %{"status" => "ok", "result" => inspect(result)}
       {:reply, Response.json(Response.tool(), payload), frame}
@@ -285,10 +283,13 @@ defmodule BB.MCP.Server do
     end
   end
 
+  # Matched by name string rather than interning the client's value as an atom:
+  # a tool call naming a command that doesn't exist would otherwise grow the
+  # atom table, which is never collected.
   defp fetch_command(robot_module, command_name) do
     robot_module
-    |> Info.commands()
-    |> Enum.find(&(&1.name == command_name))
+    |> Tools.commands()
+    |> Enum.find(&(Atom.to_string(&1.name) == command_name))
     |> case do
       nil ->
         {:error,

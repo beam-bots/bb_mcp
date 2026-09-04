@@ -7,23 +7,31 @@ defmodule BB.MCP.JsonSchema do
   Converts BB command argument definitions into JSON Schema fragments.
 
   Used to advertise command argument types to MCP clients via the
-  `list_commands` tool, so agents can know what to pass to `invoke_command`.
+  `list_commands` tool and the commands resource, so an agent knows what to
+  pass to the command's own `{robot}.{command}` tool.
 
-  Maps Spark `:type` values to JSON Schema types:
+  Maps BB argument types to JSON Schema types:
 
-      :integer        -> %{"type" => "integer"}
-      :float, :number -> %{"type" => "number"}
-      :boolean        -> %{"type" => "boolean"}
-      :string         -> %{"type" => "string"}
-      :atom           -> %{"type" => "string", "description" => "atom"}
+      :integer             -> %{"type" => "integer"}
+      :float, :number      -> %{"type" => "number"}
+      :boolean             -> %{"type" => "boolean"}
+      :string              -> %{"type" => "string"}
+      :atom                -> %{"type" => "string"}
+      {:in, values}        -> %{"type" => ..., "enum" => values}
       :map, {:map, fields} -> %{"type" => "object"}
-      :keyword_list   -> %{"type" => "object"}
-      :any            -> %{}
-      module          -> %{"description" => "complex type: \#{inspect(module)}"}
+      :keyword_list        -> %{"type" => "object"}
+      {:list, inner}       -> %{"type" => "array", "items" => ...}
+      :any                 -> %{}
+      module               -> %{"description" => "complex type: \#{inspect(module)}"}
+
+  An argument declared `:atom` or `{:in, [:a, :b]}` is advertised as a string,
+  since JSON has no atoms; `BB.MCP.PeriSchema` converts what the client sends
+  back to an atom on the way to the command's goal.
   """
 
   alias BB.Dsl.Command
   alias BB.Dsl.Command.Argument
+  alias BB.MCP.ArgumentType
 
   @doc """
   Build a JSON Schema object describing a command's arguments.
@@ -72,6 +80,13 @@ defmodule BB.MCP.JsonSchema do
   defp base_schema(:keyword_list), do: %{"type" => "object"}
   defp base_schema({:list, inner}), do: %{"type" => "array", "items" => base_schema(inner)}
   defp base_schema(:any), do: %{}
+
+  defp base_schema({:in, values}) when is_list(values) do
+    values
+    |> ArgumentType.enum_base()
+    |> base_schema()
+    |> Map.put("enum", Enum.map(values, &ArgumentType.wire_value/1))
+  end
 
   defp base_schema(module) when is_atom(module),
     do: %{"description" => "complex type: #{inspect(module)}"}
