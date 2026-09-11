@@ -8,7 +8,8 @@ defmodule BB.MCP.Tools.GetState do
 
   Returns the safety state (`:armed | :disarmed | :disarming | :error`),
   the operational state (e.g. `:idle`, `:executing`), and the list of
-  currently executing commands.
+  currently executing commands. Each command carries an `execution_id` that
+  `cancel_command` accepts.
   """
 
   use Anubis.Server.Component, type: :tool
@@ -41,8 +42,14 @@ defmodule BB.MCP.Tools.GetState do
     end
   end
 
-  defp command_info(%{name: name, pid: pid}) do
-    %{"name" => to_string(name), "pid" => inspect(pid)}
+  defp command_info(%{name: name, execution_id: execution_id} = info) do
+    %{
+      "name" => to_string(name),
+      "execution_id" => BB.Command.encode_execution_id(execution_id),
+      "pid" => inspect(info.pid),
+      "category" => to_string(info.category),
+      "started_at" => DateTime.to_iso8601(info.started_at)
+    }
   end
 
   defp command_info(other), do: %{"raw" => inspect(other)}

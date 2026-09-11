@@ -54,6 +54,8 @@ defmodule BB.MCP.Resources.RobotState do
     Map.new(map, fn {k, v} -> {to_string(k), stringify_value(v)} end)
   end
 
+  defp stringify_value(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
   defp stringify_value(pid) when is_pid(pid), do: inspect(pid)
+  defp stringify_value(reference) when is_reference(reference), do: inspect(reference)
   defp stringify_value(value), do: value
 end
