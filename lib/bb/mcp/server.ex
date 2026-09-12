@@ -68,6 +68,7 @@ defmodule BB.MCP.Server do
   alias BB.PubSub
   alias BB.Robot.Runtime
 
+  component(BB.MCP.Tools.CancelCommand)
   component(BB.MCP.Tools.ForceDisarm)
   component(BB.MCP.Tools.GetParameter)
   component(BB.MCP.Tools.GetState)
