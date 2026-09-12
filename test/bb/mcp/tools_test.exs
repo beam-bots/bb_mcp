@@ -8,6 +8,7 @@ defmodule BB.MCP.ToolsTest do
   alias Anubis.MCP.Error
   alias Anubis.Server.Frame
   alias Anubis.Server.Response
+  alias BB.Error.State.CommandCrashed
   alias BB.Error.State.NotAllowed
   alias BB.MCP.FixtureRobot
   alias BB.MCP.Tools
@@ -34,15 +35,19 @@ defmodule BB.MCP.ToolsTest do
 
   describe "parse_path/1" do
     test "splits a dotted string into atoms" do
-      assert Tools.parse_path("motion.max_speed") == [:motion, :max_speed]
+      assert Tools.parse_path("motion.max_speed") == {:ok, [:motion, :max_speed]}
     end
 
     test "handles a single segment" do
-      assert Tools.parse_path("velocity") == [:velocity]
+      assert Tools.parse_path("velocity") == {:ok, [:velocity]}
     end
 
     test "skips empty segments" do
-      assert Tools.parse_path("a..b") == [:a, :b]
+      assert Tools.parse_path("a..b") == {:ok, [:a, :b]}
+    end
+
+    test "refuses to intern a segment that is not already an atom" do
+      assert Tools.parse_path("motion.#{System.unique_integer([:positive])}") == :error
     end
   end
 
@@ -169,11 +174,22 @@ defmodule BB.MCP.ToolsTest do
 
       assert message =~ "state :armed"
       assert message =~ ":disarmed"
-      assert data.current_state == ":armed"
-      assert data.allowed_states == [":disarmed"]
+      assert data.current_state == "armed"
+      assert data.allowed_states == ["disarmed"]
       assert data.error_type =~ "BB.Error.State.NotAllowed"
       refute Map.has_key?(data, :splode)
       refute Map.has_key?(data, :bread_crumbs)
+    end
+
+    test "renders an error field holding an exception as its message" do
+      assert %Error{data: data} =
+               Tools.to_anubis_error(%CommandCrashed{
+                 command: MyRobot.Home,
+                 exception: %RuntimeError{message: "kaboom"}
+               })
+
+      assert data.exception == "kaboom"
+      assert JSON.encode!(data)
     end
 
     test "wraps unknown atoms and tuples via inspect" do
@@ -199,10 +215,11 @@ defmodule BB.MCP.ToolsTest do
 
   # `BB.Robot.State` is written from `JointState` messages and nothing else, so
   # the open-loop estimator has to interpolate the whole move before the joint
-  # reads back at its target.
+  # reads back at its target. The wait is generous because the interpolation
+  # runs on wall-clock time, which stretches when the machine is busy.
   defp await_joint_position(joint, expected) do
     assert_receive {:bb, _path, %Message{payload: %JointState{names: [^joint], positions: [p]}}},
-                   1_000
+                   5_000
 
     if p == expected do
       assert %{^joint => ^expected} =

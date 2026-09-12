@@ -13,6 +13,10 @@ defmodule BB.MCP.Tools do
   """
 
   alias Anubis.MCP.Error
+  alias BB.Dsl.Command
+  alias BB.Dsl.Info
+  alias BB.MCP.Json
+  alias BB.MCP.JsonSchema
   alias BB.MCP.Robots
 
   @doc """
@@ -61,6 +65,37 @@ defmodule BB.MCP.Tools do
   end
 
   @doc """
+  The commands declared on a robot.
+
+  `BB.Dsl.Info.commands/1` returns every entity in the DSL's `commands`
+  section, which holds command categories alongside the commands themselves,
+  so the categories are filtered out here.
+  """
+  @spec commands(module()) :: [Command.t()]
+  def commands(robot_module) when is_atom(robot_module) do
+    robot_module
+    |> Info.commands()
+    |> Enum.filter(&is_struct(&1, Command))
+  end
+
+  @doc """
+  Describe a command for the `list_commands` tool and the commands resource.
+  """
+  @spec describe_command(Command.t()) :: map()
+  def describe_command(%Command{} = command) do
+    %{
+      "name" => Atom.to_string(command.name),
+      "category" => to_string(command.category || ""),
+      "allowed_states" => Enum.map(command.allowed_states, &Atom.to_string/1),
+      "timeout" => format_timeout(command.timeout),
+      "arms" => command.arm,
+      "disarms" => command.disarm,
+      "cancels" => Enum.map(command.cancel, &Atom.to_string/1),
+      "arguments" => JsonSchema.for_command(command)
+    }
+  end
+
+  @doc """
   Fetch a tool argument from string-keyed or atom-keyed params.
   """
   @spec get_arg(map(), atom()) :: term()
@@ -94,15 +129,30 @@ defmodule BB.MCP.Tools do
 
   @doc """
   Parse a parameter path string (`"motion.max_speed"`) into atoms.
+
+  Uses `String.to_existing_atom/1`: the path segments of a registered
+  parameter are already atoms, and a segment that isn't names a parameter that
+  cannot exist. Interning whatever an MCP client sends would let a remote
+  caller grow the atom table, which is never collected.
   """
-  @spec parse_path(String.t()) :: [atom()]
+  @spec parse_path(String.t()) :: {:ok, [atom()]} | :error
   def parse_path(path) when is_binary(path) do
-    path
-    |> String.split(".", trim: true)
-    |> Enum.map(&String.to_atom/1)
+    {:ok,
+     path
+     |> String.split(".", trim: true)
+     |> Enum.map(&String.to_existing_atom/1)}
+  rescue
+    ArgumentError -> :error
   end
 
-  @splode_internal_fields [:splode, :bread_crumbs, :vars, :path, :stacktrace]
+  @splode_internal_fields [
+    :__exception__,
+    :bread_crumbs,
+    :path,
+    :splode,
+    :stacktrace,
+    :vars
+  ]
 
   @doc """
   Convert any failure value into an `Anubis.MCP.Error` for the JSON-RPC reply.
@@ -125,18 +175,15 @@ defmodule BB.MCP.Tools do
 
   def to_anubis_error(reason), do: Error.execution(inspect(reason))
 
+  defp format_timeout(:infinity), do: "infinity"
+  defp format_timeout(timeout) when is_integer(timeout), do: timeout
+
   defp exception_data(error, module) do
     error
     |> Map.from_struct()
     |> Map.drop(@splode_internal_fields)
     |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
-    |> Map.new(fn {k, v} -> {k, jsonable(v)} end)
+    |> Map.new(fn {k, v} -> {k, Json.encodable(v)} end)
     |> Map.put(:error_type, inspect(module))
   end
-
-  defp jsonable(nil), do: nil
-  defp jsonable(atom) when is_atom(atom) and not is_boolean(atom), do: inspect(atom)
-  defp jsonable(list) when is_list(list), do: Enum.map(list, &jsonable/1)
-  defp jsonable(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> jsonable()
-  defp jsonable(other), do: other
 end

@@ -10,6 +10,11 @@ defmodule BB.MCP.Tools.SendJointPositions do
   prismatic joints. Send a single joint with `joint`/`position`, or a batch as a
   JSON object string in `positions_json`. The robot must be armed and idle.
 
+  Only joints with a single degree of freedom can be commanded here, since a
+  position is one number. A `planar` or `floating` joint needs a whole pose,
+  so drive it through a command that takes one — read
+  `bb://robots/{robot}/topology` for each joint's `degrees_of_freedom`.
+
   Delivery defaults to `pubsub`, which waits for every actuator to accept its
   command and reports the first refusal. `direct` casts instead and waits for
   nothing, so it answers `ok` whether or not the robot took the command.
@@ -184,6 +189,11 @@ defmodule BB.MCP.Tools.SendJointPositions do
     cond do
       not Joint.movable?(joint) ->
         {:error, "joint is not movable: #{joint.name}"}
+
+      Joint.dof(joint) > 1 ->
+        {:error,
+         "joint #{joint.name} is #{joint.type} and has #{Joint.dof(joint)} degrees of " <>
+           "freedom, so a single position cannot describe where to put it"}
 
       joint.actuators == [] ->
         {:error, "joint has no actuators: #{joint.name}"}

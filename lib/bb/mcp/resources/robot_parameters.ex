@@ -6,7 +6,8 @@ defmodule BB.MCP.Resources.RobotParameters do
   @moduledoc """
   All runtime parameters registered on a robot, with their current values.
 
-  Read via `bb://robots/{robot}/parameters`.
+  Read via `bb://robots/{robot}/parameters`. The same data is available via the
+  `list_parameters` tool, which can also filter by path prefix.
 
   A parameter declared with a unit type reports its value and default as an
   object carrying the magnitude and the unit name, e.g.
@@ -34,10 +35,7 @@ defmodule BB.MCP.Resources.RobotParameters do
   def read(params, frame) do
     case Resources.fetch_robot(params) do
       {:ok, module} ->
-        payload =
-          module
-          |> Parameter.list()
-          |> Enum.map(&format_parameter/1)
+        payload = module |> Parameter.list() |> Enum.map(&ParameterValue.describe/1)
 
         {:reply, Response.json(Response.resource(), %{"parameters" => payload}), frame}
 
@@ -45,30 +43,4 @@ defmodule BB.MCP.Resources.RobotParameters do
         {:error, error, frame}
     end
   end
-
-  defp format_parameter({path, metadata}) when is_map(metadata) do
-    base = %{
-      "path" => format_path(path),
-      "value" => metadata |> Map.get(:value) |> serialise()
-    }
-
-    Enum.reduce([:type, :doc, :default, :required], base, fn key, acc ->
-      case Map.get(metadata, key) do
-        nil -> acc
-        value -> Map.put(acc, Atom.to_string(key), serialise(value))
-      end
-    end)
-  end
-
-  defp format_parameter({path, value}) do
-    %{"path" => format_path(path), "value" => serialise(value)}
-  end
-
-  defp format_path(path), do: Enum.map_join(path, ".", &Atom.to_string/1)
-
-  defp serialise(value) when is_atom(value) and not is_boolean(value) and not is_nil(value),
-    do: Atom.to_string(value)
-
-  defp serialise(value) when is_tuple(value), do: inspect(value)
-  defp serialise(value), do: ParameterValue.serialise(value)
 end

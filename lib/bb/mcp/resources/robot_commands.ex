@@ -17,9 +17,8 @@ defmodule BB.MCP.Resources.RobotCommands do
     name: "robot_commands"
 
   alias Anubis.Server.Response
-  alias BB.Dsl.Info
-  alias BB.MCP.JsonSchema
   alias BB.MCP.Resources
+  alias BB.MCP.Tools
 
   @impl true
   def description, do: "Commands declared in the robot's Spark DSL"
@@ -31,18 +30,7 @@ defmodule BB.MCP.Resources.RobotCommands do
   def read(params, frame) do
     case Resources.fetch_robot(params) do
       {:ok, module} ->
-        commands =
-          module
-          |> Info.commands()
-          |> Enum.map(fn cmd ->
-            %{
-              "name" => Atom.to_string(cmd.name),
-              "category" => to_string(cmd.category || ""),
-              "allowed_states" => Enum.map(cmd.allowed_states, &Atom.to_string/1),
-              "timeout" => format_timeout(cmd.timeout),
-              "arguments" => JsonSchema.for_command(cmd)
-            }
-          end)
+        commands = module |> Tools.commands() |> Enum.map(&Tools.describe_command/1)
 
         {:reply, Response.json(Response.resource(), %{"commands" => commands}), frame}
 
@@ -50,7 +38,4 @@ defmodule BB.MCP.Resources.RobotCommands do
         {:error, error, frame}
     end
   end
-
-  defp format_timeout(:infinity), do: "infinity"
-  defp format_timeout(timeout) when is_integer(timeout), do: timeout
 end
