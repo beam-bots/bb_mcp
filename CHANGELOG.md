@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.3](https://github.com/beam-bots/bb_mcp/compare/v0.3.2...v0.3.3) (2026-09-12)
+
+
+
+
+### Improvements:
+
+* report command execution ids and add a cancel tool (#61) by James Harton
+
 ## [v0.3.2](https://github.com/beam-bots/bb_mcp/compare/v0.3.1...v0.3.2) (2026-08-27)
 
 
