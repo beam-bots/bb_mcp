@@ -71,8 +71,9 @@ end
 **Cross-cutting tools** — each takes a `robot` string argument selecting the
 target: `list_robots`, `get_state`, `force_disarm`, `list_commands`,
 `list_parameters`, `get_parameter`, `set_parameter`, `send_joint_positions`,
-`query_events`. `query_events` reads a per-session ring buffer of `BB.PubSub`
-events captured since the session connected.
+`query_events`, `cancel_command`. `query_events` reads a per-session ring
+buffer of `BB.PubSub` events captured since the session connected.
+`cancel_command` also takes the `execution_id` of the command to stop.
 
 A parameter declared with a unit type crosses the boundary as an object
 carrying the magnitude and the CLDR unit name — `{"value": -12.5, "unit":
@@ -83,7 +84,14 @@ accepted on write and takes the parameter's declared unit.
 **Per-command tools** — one per `{robot, command}` pair declared in each robot's
 DSL, registered at session start, named `{robot}.{command}` (e.g. `wx200.home`,
 `wx200.arm`). Input schema is derived from the command's typed arguments;
-dispatch goes through `BB.Robot.Runtime.execute/3` + `BB.Command.await/2`.
+dispatch goes through `BB.Robot.Runtime.execute/3` + `BB.Command.yield/2`.
+
+**Long-running commands** — a command tool waits `:command_grace_period` for a
+result and then replies `{"status": "running", "execution_id": ...}`, leaving
+the command running. That is not a failure. Stop it with `cancel_command`, or
+read its outcome from `query_events` under path prefix
+`command.{command}.{execution_id}` — the encoded execution id is the same
+string that appears in the event path.
 
 **Resources** — URI-templated by robot name: `bb://robots`,
 `bb://robots/{robot}/topology`, `/state`, `/joints`, `/commands`,
@@ -95,6 +103,7 @@ dispatch goes through `BB.Robot.Runtime.execute/3` + `BB.Command.await/2`.
 |---|---|---|
 | `:robots` | `[]` | Robot modules to expose (required to expose anything) |
 | `:event_buffer_size` | `1000` | Per-session `query_events` ring-buffer capacity |
+| `:command_grace_period` | `3000` | Milliseconds a command tool waits before replying with an `execution_id` |
 
 ## Anti-patterns
 
@@ -104,6 +113,10 @@ dispatch goes through `BB.Robot.Runtime.execute/3` + `BB.Command.await/2`.
 - **Don't expose the server on an untrusted network.** There is no auth; any
   connected client can invoke `arm` and `send_joint_positions` and drive real
   hardware. Bind it to localhost/LAN behind your own access control.
+- **Don't treat `{"status": "running"}` as a failure.** The command is still
+  executing and the robot is still moving. Re-invoking the command tool may
+  fail on the category concurrency limit; call `cancel_command` if you want it
+  stopped.
 - **Don't expect motion before arming.** A robot starts `:disarmed` and refuses
   motion; `send_joint_positions` requires `:armed` + `:idle`. The client arms
   via the `{robot}.arm` tool, which runs the robot's prearm checks — the server

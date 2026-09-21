@@ -98,6 +98,7 @@ the target robot:
 | `set_parameter`     | `BB.Parameter.set/3`         |
 | `send_joint_positions` | `BB.Motion.send_positions/3` |
 | `query_events`      | per-session `BB.PubSub` ring buffer |
+| `cancel_command`    | `BB.Command.cancel/2` (also takes an `execution_id`) |
 
 A parameter declared with a unit type crosses the boundary as an object
 carrying the magnitude and the CLDR unit name — `{"value": -12.5, "unit":
@@ -109,8 +110,14 @@ Per-command tools (×N) — one tool per `{robot, command}` pair declared
 in each robot's Spark DSL, registered at session startup. Tool name is
 `{robot}.{command}` (e.g. `wx200.home`); the input schema is derived
 from the command's typed arguments. Dispatch goes through
-`BB.Robot.Runtime.execute/3` + `BB.Command.await/2`. The built-in
+`BB.Robot.Runtime.execute/3` + `BB.Command.yield/2`. The built-in
 `arm`/`disarm` commands surface as `{robot}.arm` and `{robot}.disarm`.
+
+A command tool waits `:command_grace_period` (3 seconds by default) for a
+result. A command that takes longer is not interrupted — the tool replies
+`{"status": "running", "execution_id": ...}` instead. Stop it with
+`cancel_command`, or read its outcome from `query_events` under the path
+prefix `command.{command}.{execution_id}`.
 
 ### Resources
 

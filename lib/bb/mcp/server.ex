@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 defmodule BB.MCP.Server do
+  @grace_period 3_000
+
   @moduledoc """
   MCP server that exposes BB robots to AI agents.
 
@@ -43,7 +45,19 @@ defmodule BB.MCP.Server do
   Each is named `{robot}.{command}` (e.g. `wx200.home`) and carries the
   command's typed argument schema. They are dispatched through
   `handle_tool_call/3` to `BB.Robot.Runtime.execute/3` +
-  `BB.Command.await/2`.
+  `BB.Command.yield/2`.
+
+  ## Long-running commands
+
+  A command tool waits `#{@grace_period}ms` for a result, which keeps the many
+  commands that finish promptly to a single round-trip. A command that takes
+  longer is not interrupted: the tool replies with its `execution_id`, which
+  the agent hands to `cancel_command` to stop it, or uses as a `query_events`
+  path prefix to pick up the `succeeded`/`failed` event when it lands.
+
+  Override the wait with:
+
+      config :bb_mcp, command_grace_period: 10_000
 
   ## Resources
 
@@ -67,6 +81,8 @@ defmodule BB.MCP.Server do
   alias BB.PubSub
   alias BB.Robot.Runtime
 
+  @collect_timeout 100
+
   component(BB.MCP.Tools.CancelCommand)
   component(BB.MCP.Tools.ForceDisarm)
   component(BB.MCP.Tools.GetParameter)
@@ -84,8 +100,6 @@ defmodule BB.MCP.Server do
   component(BB.MCP.Resources.RobotParameters)
   component(BB.MCP.Resources.RobotState)
   component(BB.MCP.Resources.RobotTopology)
-
-  @await_default 30_000
 
   @impl Anubis.Server
   def init(_client_info, frame) do
@@ -188,6 +202,13 @@ defmodule BB.MCP.Server do
     `send_joint_positions`, `list_commands`) take a `robot` argument
     selecting which robot to operate on.
 
+    A command tool waits a few seconds for its result. If the command
+    is still running it replies with `{"status": "running",
+    "execution_id": ...}` — the command has NOT failed and the robot is
+    still moving. Stop it with `cancel_command`, or wait and read its
+    outcome from `query_events` under the path prefix
+    `command.{command}.{execution_id}`.
+
     `query_events` returns recent pubsub events captured since this MCP
     session connected — useful for inspecting command outcomes,
     joint-state changes, and motion lifecycle without polling state.
@@ -256,21 +277,63 @@ defmodule BB.MCP.Server do
     with {:ok, robot_module} <- resolve_robot(robot_name),
          {:ok, command} <- fetch_command(robot_module, command_name),
          goal = PeriSchema.to_goal(command, params),
-         {:ok, pid} <- Runtime.execute(robot_module, command.name, goal),
-         {:ok, result} <- await_command(pid) do
-      payload = %{"status" => "ok", "result" => inspect(result)}
-      {:reply, Response.json(Response.tool(), payload), frame}
+         {:ok, pid} <- Runtime.execute(robot_module, command.name, goal) do
+      reply_for(Command.yield(pid, grace_period()), pid, robot_module, command, frame)
     else
       {:error, reason} ->
         {:error, Tools.to_anubis_error(reason), frame}
     end
   end
 
-  defp await_command(pid) do
-    case Command.await(pid, @await_default) do
-      {:ok, result} -> {:ok, result}
-      {:ok, result, _opts} -> {:ok, result}
-      {:error, reason} -> {:error, reason}
+  # `BB.Command.yield/2` returns `nil` both for a command that is still running
+  # and for one that finished with a `nil` result, so look the command up in the
+  # robot's registry to tell the two apart.
+  defp reply_for(nil, pid, robot_module, command, frame) do
+    case execution_id_for(robot_module, pid) do
+      nil -> completed(Command.yield(pid, @collect_timeout), frame)
+      execution_id -> still_running(execution_id, command, frame)
+    end
+  end
+
+  defp reply_for(result, _pid, _robot_module, _command, frame), do: completed(result, frame)
+
+  defp completed({:ok, result}, frame), do: completed_reply(result, frame)
+  defp completed({:ok, result, _opts}, frame), do: completed_reply(result, frame)
+  defp completed(nil, frame), do: completed_reply(nil, frame)
+
+  defp completed({:error, reason}, frame),
+    do: {:error, Tools.to_anubis_error(reason), frame}
+
+  defp completed_reply(result, frame) do
+    payload = %{"status" => "ok", "result" => inspect(result)}
+    {:reply, Response.json(Response.tool(), payload), frame}
+  end
+
+  defp still_running(execution_id, command, frame) do
+    payload = %{
+      "status" => "running",
+      "execution_id" => execution_id,
+      "note" =>
+        "The command is still running. Stop it with `cancel_command`, or read " <>
+          "its outcome from `query_events` under path prefix " <>
+          "`command.#{command.name}.#{execution_id}`."
+    }
+
+    {:reply, Response.json(Response.tool(), payload), frame}
+  end
+
+  defp execution_id_for(robot_module, pid) do
+    robot_module
+    |> Command.list()
+    |> Enum.find_value(fn entry ->
+      if entry.pid == pid, do: Command.encode_execution_id(entry.execution_id)
+    end)
+  end
+
+  defp grace_period do
+    case Application.get_env(:bb_mcp, :command_grace_period, @grace_period) do
+      ms when is_integer(ms) and ms > 0 -> ms
+      _ -> @grace_period
     end
   end
 

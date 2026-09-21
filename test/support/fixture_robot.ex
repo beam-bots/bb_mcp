@@ -22,6 +22,17 @@ defmodule BB.MCP.FixtureRobot do
     def result(state), do: {:ok, state.result}
   end
 
+  defmodule SlowHandler do
+    @moduledoc false
+    use BB.Command
+
+    @impl BB.Command
+    def handle_command(_goal, _context, state), do: {:noreply, state}
+
+    @impl BB.Command
+    def result(_state), do: {:ok, :interrupted}
+  end
+
   defmodule WaveHandler do
     @moduledoc false
     use BB.Command
@@ -82,6 +93,11 @@ defmodule BB.MCP.FixtureRobot do
         default(1000)
         doc("Duration in milliseconds")
       end
+    end
+
+    command :slow do
+      handler(SlowHandler)
+      allowed_states([:idle])
     end
 
     command :wave do
