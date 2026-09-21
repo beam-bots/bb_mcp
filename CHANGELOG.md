@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.4](https://github.com/beam-bots/bb_mcp/compare/v0.3.3...v0.3.4) (2026-09-21)
+
+
+
+
+### Improvements:
+
+* hand back an execution id when a command outlives its tool call (#65) by James Harton
+
 ## [v0.3.3](https://github.com/beam-bots/bb_mcp/compare/v0.3.2...v0.3.3) (2026-09-12)
 
 
