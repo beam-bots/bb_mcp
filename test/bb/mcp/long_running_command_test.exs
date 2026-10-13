@@ -33,6 +33,8 @@ defmodule BB.MCP.LongRunningCommandTest do
 
   test "a command that finishes inside the grace period replies with its result",
        %{frame: frame} do
+    Application.put_env(:bb_mcp, :command_grace_period, :timer.minutes(1))
+
     assert {:reply, response, _frame} =
              Server.handle_tool_call("fixture_robot.go_home", %{}, frame)
 
