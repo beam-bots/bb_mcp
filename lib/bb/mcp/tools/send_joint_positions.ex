@@ -18,12 +18,18 @@ defmodule BB.MCP.Tools.SendJointPositions do
   Delivery defaults to `pubsub`, which waits for every actuator to accept its
   command and reports the first refusal. `direct` casts instead and waits for
   nothing, so it answers `ok` whether or not the robot took the command.
+
+  An actuator that doesn't answer in time is reported as status `pending`, not
+  as an error. Its command is still queued and will most likely be applied
+  late, and anything sent next queues behind it, so read the joint state before
+  sending another target.
   """
 
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.MCP.Error
   alias Anubis.Server.Response
+  alias BB.Error.State.CommandPending
   alias BB.MCP.Tools
   alias BB.Motion
   alias BB.Robot.Joint
@@ -73,12 +79,12 @@ defmodule BB.MCP.Tools.SendJointPositions do
          :ok <- check_motion_allowed(robot),
          {:ok, positions} <- parse_positions(robot, params),
          {:ok, opts} <- parse_opts(params),
-         :ok <- send_positions(robot, positions, opts) do
-      payload = %{
-        "delivery" => opts |> Keyword.fetch!(:delivery) |> Atom.to_string(),
-        "positions" => format_positions(positions),
-        "status" => "ok"
-      }
+         {:ok, outcome} <- send_positions(robot, positions, opts) do
+      payload =
+        Map.merge(outcome, %{
+          "delivery" => opts |> Keyword.fetch!(:delivery) |> Atom.to_string(),
+          "positions" => format_positions(positions)
+        })
 
       {:reply, Response.json(Response.tool(), payload), frame}
     else
@@ -261,7 +267,16 @@ defmodule BB.MCP.Tools.SendJointPositions do
     do: {:error, "#{key} must be a positive integer"}
 
   defp send_positions(robot, positions, opts) do
-    Motion.send_positions(robot, positions, opts)
+    case Motion.send_positions(robot, positions, opts) do
+      :ok ->
+        {:ok, %{"status" => "ok"}}
+
+      {:error, %CommandPending{} = pending} ->
+        {:ok, %{"status" => "pending", "message" => Exception.message(pending)}}
+
+      {:error, _reason} = error ->
+        error
+    end
   rescue
     exception ->
       {:error, Error.execution("send_joint_positions failed: #{Exception.message(exception)}")}
