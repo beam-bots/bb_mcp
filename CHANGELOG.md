@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.5](https://github.com/beam-bots/bb_mcp/compare/v0.3.4...v0.3.5) (2026-10-14)
+
+
+
+
+### Improvements:
+
+* report a late actuator as `pending` from `send_joint_positions` (#76) by James Harton
+
 ## [v0.3.4](https://github.com/beam-bots/bb_mcp/compare/v0.3.3...v0.3.4) (2026-09-21)
 
 

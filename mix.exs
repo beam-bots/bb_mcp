@@ -9,7 +9,7 @@ defmodule BB.MCP.MixProject do
   Model Context Protocol server for Beam Bots robots.
   """
 
-  @version "0.3.4"
+  @version "0.3.5"
 
   def project do
     [
